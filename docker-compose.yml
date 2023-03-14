@@ -1,0 +1,20 @@
+version: "3.5"
+services:
+  #pb_bot:
+  #image: "pb_bot:latest"
+      #user: "${UID-0}:${GID-0}"
+      #volumes:
+      #- type: bind
+      #source: ./default-config.yml
+      #target: /app/deafult-config.yml
+      #environment:
+      #- "PYTHONUNBUFFERED=1"
+  mongo:
+    image: "mongo:latest"
+      #user: "${UID-0}:${GID-0}"
+    restart: always
+    ports: 
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: <YOUR_USER_HERE>
+      MONGO_INITDB_ROOT_PASSWORD: <YOUR_PW_HERE>

@@ -1,0 +1,31 @@
+base_config:
+  auth_token: <TOKEN_HERE>
+  mongo_url: <MONGO_URL_HERE>
+  db_name: "BOTTESTDATA"
+  user_role:
+    enabled: False
+    role: "bot-user-role"
+  admin_role:
+    enabled: True
+    role: "bot-admin-role"
+games:
+  -   name:     cyber-hook
+      enabled:  True
+      channel:  
+        - cyber-hook-test
+        - general-test
+  -   name:     mk64
+      enabled:  True
+      channel: 
+        - mk-test 
+        - general-test
+  -   name:     csgo-surf
+      enabled:  False
+      channel: 
+        - csgo-test 
+        - general-test
+  -   name:     dodonpachi 
+      enabled: True
+      channel:
+        - dodon-test
+        - general-test

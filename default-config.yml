@@ -1,5 +1,5 @@
 base_config:
-  auth_token: "TOKEN-HERE"
+  auth_token: "TOKEN HERE"
   user_role:
     enabled: False
     role: "bot-user-role"

@@ -3,3 +3,5 @@ secrets
 sandbox*
 config.yml
 .vscode/
+*.swp
+__pycache__
