@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from model import *
 from typing import List, Tuple
+from datetime import datetime
 
 class BotData():
     '''
@@ -28,7 +29,7 @@ class BotData():
             if not self._get_game(name):
                 #TODO add config support for categories.
                 #Currently every game gets one default time category with the same fmt
-                game = self.add_game(name, [('Default', '%H:%M:%S', True)], enabled)
+                game = self.add_game(name, [('Default', "Time", '%H:%M:%S', True)], enabled)
             else:
                 game = self._get_game(name)
 
@@ -46,6 +47,13 @@ class BotData():
     def _get_game(self, name: str):
         return Game.find(Game.name == name).first_or_none()
 
+    def _get_category(self, game: Game, category_name: str):
+        for category in game.categories:
+            if category.name == category_name:
+                return category
+        print("Category Not Found")
+        return False
+
     def _add_channel(self, name: str, games: List[Game]):
         new_channel = Channel(name=name, games=games)
         new_channel.save()
@@ -55,33 +63,54 @@ class BotData():
         channel.games.append(game)
         channel.save()
 
+    def _add_score_to_category(self, player_id: str, category: Category, score_value: str):
+        try:
+            score = None
+            match category.score_type:
+                case "Time":
+                    time = datetime.strptime(score_value, category.score_fmt)
+                    score = TimeScore(player_id=player_id, value=time)
+                case "Point":
+                    points = int(score_value)
+                    score = PointScore(player_id=player_id, value=points)
+                case _:
+                    print("Invalid score type selected.")
+                    return False
+        except ValueError as e:
+            print(f"Invalid score value for {category.name}")
+            print(f"Expected format is {category.score_fmt}")
+            return False
+
+        if(score):
+            print("Added new score with value: {score.value} for player_id: {player_id}")
+            category.scores.append(score)
+            return category
+
+        return False
+
+
     #Public methods
     def add_game(self, name: str, categories: List[Tuple[str, str, bool]], is_enabled: bool = True):
         cat_list = []
         for cat in categories:
-            cat_list.append(Category(name=cat[0], score_fmt=cat[1], is_enabled=cat[2]))
+            cat_list.append(Category(name=cat[0], score_type=cat[1], score_fmt=cat[2], is_enabled=cat[3]))
 
         new_game = Game(name=name, is_enabled=is_enabled, categories=cat_list)
         new_game.save()
 
         return new_game
 
-    def add_score(self, player_id: str, game_name: str, value: str, category: str='Default'):
-        print("Adding score")
+    def add_score(self, player_id: str, game_name: str, score_value: str, category_name: str='Default'):
         game = self._get_game(game_name)
-        print(f"Got game {len(game.categories)}")
-        #TODO Validate score format.
-        if(len(game.categories) > 0):#TODO I think the walrus operator can help clean this up.
-            cat = [cat for cat in game.categories if cat.name == category][0]
-            print(f"Category is {cat.name}")
-            score = Score(player_id=player_id, value=value)
-            print("Created new score object")
-            cat.scores.append(score)
-            print("Inserted new score")
-            game.save()
-            print("Saved score to game")
+        category = self._get_category(game, category_name)
+        if(category):
+            print(f"Adding score to {category.name}")
+            added_score = self._add_score_to_category(player_id, category, score_value)
+            if(added_score):
+                game.save()
+                print("Saved score to game")
         else:
-            print(f"Failed to add score {player_id}:{value} for {game_name}:{category}.")
+            print(f"Failed to add score {player_id}:{value} for {game_name}:{category_name}.")
 
     def get_active_channels(self):
         '''
@@ -123,9 +152,11 @@ class BotData():
 
     def get_scores(self, game_name, category_name='Default'):
         game = self._get_game(game_name)
-        cat = [cat for cat in game.categories if cat.name == category_name][0]
-        return [(score.player_id, score.value, score.create_time) for score in cat.scores]
-
+        category = self._get_category(game, category_name)
+        if category.score_type == "Time":
+            return [(score.player_id, score.value.strftime(category.score_fmt), score.create_time) for score in category.scores]
+        else:
+            return [(score.player_id,  score.value, score.create_time) for score in category.scores]
     def is_game_available_for_channel(self, game_name, channel_name):
         return game_name in self.get_games_in_channel(channel_name)
 

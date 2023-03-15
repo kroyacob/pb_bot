@@ -95,11 +95,12 @@ def determine_valid_channel():
 @determine_valid_channel()
 @bot.command()
 async def add(ctx, *args):
+    pass
     #args = ctx.args
     #kwargs = ctx.kwargs.get('game_name')
     #for arg in args:
         #print(f"Got arg: {arg}")
-    await ctx.send(f'[{kwargs}] Just testing... ')
+    #await ctx.send(f'[{kwargs}] Just testing... ')
 
 #def validate_name_and_category(game_name, category_name='Default'):
 
@@ -156,7 +157,7 @@ async def list_scores(ctx, game_name, category_name='Default'):
         return False
 
     score_list = bot_data.get_scores(game_name)
-    print("Got score_list: {score_list}")
+    print(f"Got score_list: {score_list}")
     msg_list = []
     for score in score_list:
         user_name = score[0]
@@ -165,7 +166,10 @@ async def list_scores(ctx, game_name, category_name='Default'):
         msg_list.append(f"{user_name} set {value} on {create_time}")
 
     msg = "\n".join(msg_list)
-    await ctx.send(f'Scores set for {game_name}:{category_name}\n {msg}')
+    if(len(score_list) > 0):
+        await ctx.send(f'Scores set for {game_name}:{category_name}\n {msg}')
+    else:
+        await ctx.send(f'No scores set for {game_name}:{category_name}')
 
 
 # Error Handling

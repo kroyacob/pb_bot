@@ -5,12 +5,13 @@ from model import *
 
 class BotDataIntegrationTest(unittest.TestCase):
     TEST_DB_NAME = "BOTTESTDATA"
+    #@classmethod
     def _load_test_config(configName: str):
         try:
             with open(configName, 'r') as config_file:
                 return yaml.load(config_file, Loader=yaml.FullLoader)
         except Exception as e:
-            self.fail(f"Failed to load test config file: {configName} with Exception: {e}")
+            BotDataIntegrationTest.fail(f"Failed to load test config file: {configName} with Exception: {e}")
 
     @classmethod
     def setUpClass(self):
@@ -89,6 +90,8 @@ class BotDataIntegrationTest(unittest.TestCase):
         print(f"DB active channes: {db_active_channels}")
         self.assertEqual(db_active_channels, assert_active_channels)
 
+    def test_init_score(self):
+        score = TimeScore(player_id="me", value="test")
     #def test_get_categories_for_game(self):
         #db_cats_for_game = self.bot_data.get_categories_for_game()
 
