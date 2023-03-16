@@ -7,7 +7,7 @@ class BotData():
     '''
     Provides functions to interact with bot data stored in mongo DB.
     '''
-    def __init__(self, url, db_name='BOTDATA', games_config=None):
+    def __init__(self, url: str, db_name: str = 'BOTDATA', games_config=None):
         self.mongo_client = MongoClient(url)
         self.db = self.mongo_client[db_name]
         init_model(self.db)
@@ -28,7 +28,7 @@ class BotData():
             enabled = config['enabled']
             if not self._get_game(name):
                 #TODO add config support for categories.
-                #Currently every game gets one default time category with the same fmt
+                #Currently every game gets one default time category with the same format
                 game = self.add_game(name, [('Default', "Time", '%H:%M:%S', True)], enabled)
             else:
                 game = self._get_game(name)
@@ -42,22 +42,18 @@ class BotData():
                         self._add_game_to_channel(game, chan)
 
     def _get_channel(self, name: str):
-        return Channel.find(Channel.name == name).first_or_none()
+        return Channel.find(Channel.name == name, fetch_links = True).first_or_none()
 
     def _get_game(self, name: str):
         return Game.find(Game.name == name).first_or_none()
 
     def _get_category(self, game: Game, category_name: str):
-        for category in game.categories:
-            if category.name == category_name:
-                return category
-        print("Category Not Found")
-        return False
+        return [ category for category in game.categories if category.name == category_name ]
 
     def _add_channel(self, name: str, games: List[Game]):
-        new_channel = Channel(name=name, games=games)
-        new_channel.save()
-        return new_channel
+        channel = Channel(name=name, games=games)
+        channel.save()
+        return channel
 
     def _add_game_to_channel(self, game: Game, channel: Channel):
         channel.games.append(game)
@@ -84,7 +80,7 @@ class BotData():
         if(score):
             print("Added new score with value: {score.value} for player_id: {player_id}")
             category.scores.append(score)
-            return category
+            return True
 
         return False
 
@@ -109,6 +105,8 @@ class BotData():
             if(added_score):
                 game.save()
                 print("Saved score to game")
+            else:
+                print("Failed to add score")
         else:
             print(f"Failed to add score {player_id}:{value} for {game_name}:{category_name}.")
 
@@ -129,18 +127,16 @@ class BotData():
 
     #TODO maybe create a sepearate method to get active Game objects, or maybe just get the names in the bot.py code?
     def get_active_games(self):
-        '''
-        Returns a list of active game names.
-        '''
         return [game.name for game in Game.find_many(Game.is_enabled == True)]
 
     #Assumes channel names are uniqe. Could require a (channel, server) pair if multiple servers need to be considered.
-    def get_games_in_channel(self, channel_name, game_enabled = True):
-        channel =  Channel.find(Channel.name == channel_name, fetch_links = True).first_or_none()
+    #game_enabled = None should return all games in the channel
+    def get_games_in_channel(self, channel_name: str, game_enabled: bool = True):
+        channel =  self._get_channel(channel_name)
         if(channel):
-            return [game.name for game in channel.games if game.is_enabled == game_enabled]
+            return [game.name for game in channel.games if game_enabled is None or game.is_enabled == game_enabled]
 
-    def get_categories_for_game(self, game_name, category_enabled = True):
+    def get_categories_for_game(self, game_name: str, category_enabled: bool = True):
         game = self._get_game(game_name)
         print(f"Got game: {game.name}")
         if(game):
@@ -148,17 +144,19 @@ class BotData():
             print(f"Got Categories: {cat_list}")
             return cat_list
         else:
+            print("Game not found")
             return []
 
-    def get_scores(self, game_name, category_name='Default'):
+    def get_scores(self, game_name: str, category_name: str = 'Default'):
         game = self._get_game(game_name)
         category = self._get_category(game, category_name)
         if category.score_type == "Time":
             return [(score.player_id, score.value.strftime(category.score_fmt), score.create_time) for score in category.scores]
         else:
             return [(score.player_id,  score.value, score.create_time) for score in category.scores]
-    def is_game_available_for_channel(self, game_name, channel_name):
+
+    def is_game_available_for_channel(self, game_name: str, channel_name: str):
         return game_name in self.get_games_in_channel(channel_name)
 
-    def is_category_available_for_game(self, category_name, game_name):
+    def is_category_available_for_game(self, category_name: str, game_name: str):
         return category_name in self.get_categories_for_game(game_name)
