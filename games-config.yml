@@ -1,0 +1,34 @@
+-   name:     cyber-hook
+    enabled:  True
+    channel:  
+      - cyber-hook-test
+      - general-test
+-   name:     mk64
+    enabled:  True
+    category:
+      - name: 3lap
+        enabled: True
+        score_type: Time
+        score_fmt: "%M:%S.%f"
+        subcategory: 
+          label: Map
+          category:
+            - name: Rainbow Road
+            - name: Toad Turnpike
+            - name: Choco Mountain
+            - name: Moo Moo Farm 
+            - name: Koopa Troopa Beach
+            - name: Wario Stadium
+    channel: 
+      - mk-test 
+      - general-test
+-   name:     csgo-surf
+    enabled:  False
+    channel: 
+      - csgo-test 
+      - general-test
+-   name:     dodonpachi 
+    enabled: True
+    channel:
+      - dodon-test
+      - general-test

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, time
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -5,6 +6,7 @@ from bunnet import Document, Link, Indexed, init_bunnet
 
 class Score(BaseModel):
     #score_id: Indexed(int)
+    id: str = Field(default_factory=uuid.uuid4, alias='_id')
     player_id: str
     create_time: datetime = datetime.now()
 
@@ -18,22 +20,16 @@ class TimeScore(Score):
 class PointScore(Score):
     value: int
 
-"""class FloatValueScore(Score):
-    value: float
-"""
-'''
-class Score(BaseModel):
-    #id: int #TODO Make DB manage this
-    player_id: str
-    create_time: datetime = datetime.now()
-    value: str
-'''
 class Category(BaseModel):
     name: str = 'Default'
+    label: str = 'Category'
     is_enabled: bool = True
     score_type: str
     score_fmt: Optional[str]
     scores: Optional[List[TimeScore|PointScore]] = []
+
+class Category(Category):
+    categories: Optional[List[Category]]
 
 class Game(Document):
     #id: str = Field(default_factory=uuid.uuid4, alias='_id')
@@ -46,7 +42,6 @@ class Game(Document):
 
 class Channel(Document):
     name: str
-    #is_enabled: bool #TODO Does it make sense to have enable/disable for channels?
     games: List[Link[Game]] = [] #TODO Should this be optional?
 
     class Settings():

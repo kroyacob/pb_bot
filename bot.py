@@ -14,17 +14,15 @@ except Exception as e:
     print("Unable to load config.yml. Make sure you created your configuration.")
     exit(1)
 
-token = config["base_config"]["auth_token"]
+token               = config["base_config"]["auth_token"]
 admin_role_enabled  = config["base_config"]["admin_role"]["enabled"]
 admin_role_name     = config["base_config"]["admin_role"]["role"]
 user_role_enabled   = config["base_config"]["user_role"]["enabled"]
 user_role_name      = config["base_config"]["user_role"]["role"]
-
+mongo_url           = config["base_config"]["mongo_url"]
+db_name             = config["base_config"]["db_name"]
 # DB Data init and config loading
-mongo_url = config["base_config"]["mongo_url"]
-db_name = config["base_config"]["db_name"]
-games_config = config['games']
-bot_data = BotData(mongo_url, db_name, games_config)
+bot_data = BotData(mongo_url, db_name, "games-config.yml")
 
 active_channels = bot_data.get_active_channels()#[game['channel'] for game in config['games'] if game['enabled']]
 active_games    = bot_data.get_active_games()#[game['name'] for game in config['games'] if game['enabled']]
@@ -186,4 +184,3 @@ async def add_error(ctx, error):
 
 # Launch
 bot.run(token)
-

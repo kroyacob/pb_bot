@@ -80,20 +80,51 @@ class BotDataIntegrationTest(unittest.TestCase):
     def test_get_active_games(self):
         db_active_games = set(self.bot_data.get_active_games())
         assert_active_games = set([ game['name'] for game in self.games_config if game['enabled'] == True ])
+
         self.assertEqual(db_active_games, assert_active_games)
 
     def test_get_active_channels(self):
         db_active_channels = set(self.bot_data.get_active_channels())
         assert_active_channels = [ game['channel'] for game in self.games_config if game['enabled'] == True ]
-        assert_active_channels = set([ game for sub_game in assert_active_channels for game in sub_game ])
-        print(f"Assert active channels: {assert_active_channels}")
-        print(f"DB active channes: {db_active_channels}")
+        assert_active_channels = set([ channel for sub_channel in assert_active_channels for channel in sub_channel])
+
         self.assertEqual(db_active_channels, assert_active_channels)
 
-    def test_init_score(self):
-        score = TimeScore(player_id="me", value="test")
+    def test_get_channels(self):
+        config_channels = [ game['channel'] for game in self.games_config ]
+        assert_channels = set([ channel for sub_channel in config_channels for channel in sub_channel])
+        db_channels = set(self.bot_data.get_channels())
+
+        self.assertEqual(db_channels, assert_channels)
+        
+    def test_get_games_in_channel(self):
+        games_list = [ { game["name"] : set(game['channel']) } for game in self.games_config ]
+        assert_games = {}
+        for game in games_list:
+            assert_games.update(game)
+        db_games = {}
+        for check_channel in self.bot_data.get_channels():
+            games = self.bot_data.get_games_in_channel(check_channel, None)
+            for game in games:
+                if game in db_games:
+                    db_games[game].add(check_channel)
+                else:
+                    db_games[game] = set([check_channel])
+
+        self.assertEqual(db_games, assert_games)   
+        
+    #def test_create_subcategory(self):
+        #subcategory = Category(name="Rainbow Road", score_type="Time")
+        #category = Category(name="Single track", score_type="Time", score_fmt="%H:%M:%S", subcategory=[subcategory])
+        #game = Game(name="mk64", is_enabled=True, categories=[category])
+        #game.save()
     #def test_get_categories_for_game(self):
         #db_cats_for_game = self.bot_data.get_categories_for_game()
+    
+    def test_get_category(self):
+        game = self.bot_data._get_game("mk64")
+        category = self.bot_data._get_category(game, "Toad Turnpike")
+        self.assertEqual("Toad Turnpike", category.name)
 
 if __name__ == '__main__':
     unittest.main()

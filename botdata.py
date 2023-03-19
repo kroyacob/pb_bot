@@ -2,20 +2,55 @@ from pymongo import MongoClient
 from model import *
 from typing import List, Tuple
 from datetime import datetime
+import yaml
 
 class BotData():
     '''
     Provides functions to interact with bot data stored in mongo DB.
     '''
-    def __init__(self, url: str, db_name: str = 'BOTDATA', games_config=None):
+    def __init__(self, url: str, db_name: str = 'BOTDATA', games_config = None):
         self.mongo_client = MongoClient(url)
         self.db = self.mongo_client[db_name]
         init_model(self.db)
 
         if(games_config):
+            #Games config can be passed as a file or pre-loaded dict
+            if(isinstance(games_config, str)):
+                games_config = self.load_config_file(games_config)
+
             self._init_games_config(games_config)
 
     #Private methods
+    def _init_category(self, category_config, cat_label="Category"):
+        cat_name = category_config["name"]
+        score_type = category_config.get("score_type", "Time")
+        score_fmt = category_config.get("score_fmt", None)
+        enabled = category_config.get("enabled", True)
+
+        if "subcategory" in category_config:
+            subcategory_config = category_config["subcategory"]
+            cat_label = subcategory_config.get("label", "Category")
+            categories = self._init_game_categories(subcategory_config["category"], cat_label)
+            print("Created subcategory")
+        else:
+            categories = None
+
+        category = Category(
+            name=cat_name, 
+            label=cat_label, 
+            is_enabled=enabled, 
+            score_type=score_type,
+            score_fmt=score_fmt, 
+            categories=categories
+        )
+        return category
+
+    def _init_game_categories(self, category_config, cat_label="Category"):
+        categories = []
+        for category in category_config:
+            categories.append(self._init_category(category, cat_label))
+        return categories
+        
     def _init_games_config(self, games_config):
         '''
         Syncs the provided games_config dict state with the state of the DB.
@@ -26,10 +61,19 @@ class BotData():
             channel_list = config['channel']
             name = config['name']
             enabled = config['enabled']
-            if not self._get_game(name):
-                #TODO add config support for categories.
-                #Currently every game gets one default time category with the same format
-                game = self.add_game(name, [('Default', "Time", '%H:%M:%S', True)], enabled)
+            if("category" in config):
+                categories = self._init_game_categories(config['category'])
+            else:
+                category = Category(
+                    score_type="Time",
+                    score_fmt="%M:%S.%f", 
+                    categories=None
+                )
+                categories = [category]
+
+
+            if not (game := self._get_game(name)):
+                game = self.add_game(name, categories, enabled)
             else:
                 game = self._get_game(name)
 
@@ -48,7 +92,11 @@ class BotData():
         return Game.find(Game.name == name).first_or_none()
 
     def _get_category(self, game: Game, category_name: str):
-        return [ category for category in game.categories if category.name == category_name ]
+        for category in game.categories: 
+            if category.name == category_name:
+                return category
+            elif hasattr(category, "categories"):
+                return self._get_category(category, category_name)
 
     def _add_channel(self, name: str, games: List[Game]):
         channel = Channel(name=name, games=games)
@@ -59,6 +107,13 @@ class BotData():
         channel.games.append(game)
         channel.save()
 
+    def _add_category(self, name: str, category: Category, parent_node):
+        if(isinstance(parent_node, Game) or isinstance(parent_node, Category)):
+            parent_node.categories.append(category)
+        else:
+            print(f"Invalid parent_node type {type(parent_node)}")
+            return False
+     
     def _add_score_to_category(self, player_id: str, category: Category, score_value: str):
         try:
             score = None
@@ -72,6 +127,7 @@ class BotData():
                 case _:
                     print("Invalid score type selected.")
                     return False
+
         except ValueError as e:
             print(f"Invalid score value for {category.name}")
             print(f"Expected format is {category.score_fmt}")
@@ -84,16 +140,19 @@ class BotData():
 
         return False
 
-
     #Public methods
-    def add_game(self, name: str, categories: List[Tuple[str, str, bool]], is_enabled: bool = True):
-        cat_list = []
-        for cat in categories:
-            cat_list.append(Category(name=cat[0], score_type=cat[1], score_fmt=cat[2], is_enabled=cat[3]))
+    def load_config_file(self, file_name: str):
+        try:
+            with open(file_name, 'r') as config_file:
+                config = yaml.load(config_file, Loader=yaml.FullLoader)
+                return config
+        except Exception as e:
+            print(e)
+            print(f"Failed to load to load config: {file_name}")
 
-        new_game = Game(name=name, is_enabled=is_enabled, categories=cat_list)
+    def add_game(self, name: str, categories: List[Category], is_enabled: bool = True):
+        new_game = Game(name=name, is_enabled=is_enabled, categories=categories)
         new_game.save()
-
         return new_game
 
     def add_score(self, player_id: str, game_name: str, score_value: str, category_name: str='Default'):
@@ -106,9 +165,12 @@ class BotData():
                 game.save()
                 print("Saved score to game")
             else:
-                print("Failed to add score")
+                print("Failed to save score")
         else:
-            print(f"Failed to add score {player_id}:{value} for {game_name}:{category_name}.")
+            print(f"Failed to add score {player_id}:{score_value} for {game_name}:{category_name}.")
+
+    def get_channels(self):
+        return [channel.name for channel in Channel.find_all()]
 
     def get_active_channels(self):
         '''
@@ -140,7 +202,9 @@ class BotData():
         game = self._get_game(game_name)
         print(f"Got game: {game.name}")
         if(game):
+            self._get_category()
             cat_list = [category.name for category in game.categories if category.is_enabled == category_enabled]
+
             print(f"Got Categories: {cat_list}")
             return cat_list
         else:
